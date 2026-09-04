@@ -13,6 +13,10 @@
 
 //Call servers: https://api.steampowered.com/IGameServersService/GetServerList/v1/?key=0C439C917498DD49700A29AE4CF16250&filter=\appid\552100&limit=100
 
+/*
+* {"response":{"servers":[{"addr":"186.79.115.82:27015","gameport":7777,"steamid":"90292121794192404","name":"My Server #955","appid":552100,"gamedir":"BrickRigs","version":"1.0.0.2","product":"BrickRigs","region":-1,"players":0,"max_players":16,"bots":0,"map":"LI_Canyon","secure":true,"dedicated":true,"os":"w","gametype":"BUILDID:-1252925617,OWNINGID:76561198686315881,OWNINGNAME:My Server #955,SESSIONFLAGS:683,PASSWORD_i:0,ALLOWMODS_i:0,FPS_i:1014"}]}}
+*/
+
 Function<void* (FOnlineSessionSteam*)> GetGameServerSession("48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 20 48 8D 99 88 02");
 
 bool InitSteamworksServer(FOnlineSubsystemSteam* This)
