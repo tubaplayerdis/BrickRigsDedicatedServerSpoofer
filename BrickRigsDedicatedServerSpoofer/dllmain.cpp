@@ -6,10 +6,13 @@
 #include <mutex>
 #include <string>
 #include <iostream>
-//#define CONSOLE //Toggles whether we make our own console
-#define ACTUAL_DEDICATED //Whether to actually register with steams dedicated server backend
+#include "auth.hpp"
 
-#define CONSOLE_INPUT
+#ifdef RELEASE
+#define DEDICATED
+//#define HEADLESS
+//#define SPOOF
+#endif
 
 //Call servers: https://api.steampowered.com/IGameServersService/GetServerList/v1/?key=0C439C917498DD49700A29AE4CF16250&filter=\appid\552100&limit=100
 
@@ -32,9 +35,8 @@ FOnlineSessionSteam* Session = nullptr;
 Hook<bool(FOnlineSessionSteam*, int, SDK::FName, FOnlineSessionSettings*)> CreateSessionHook("4C 89 4C 24 20 89 54 24 10 55 53 56 57 41 54",
     [](FOnlineSessionSteam* This, int HostingPlayerNum, SDK::FName SessionName, FOnlineSessionSettings* NewSessionSettings) -> bool
     {
-        std::cout << "testing!" << std::endl;
         NewSessionSettings->bIsDedicated = true;
-#ifdef ACTUAL_DEDICATED
+#ifdef DEDICATED
         NewSessionSettings->bIsLANMatch = false;
         NewSessionSettings->bUseLobbiesIfAvailable = false;
         NewSessionSettings->bUsesPresence = false;
@@ -44,17 +46,17 @@ Hook<bool(FOnlineSessionSteam*, int, SDK::FName, FOnlineSessionSettings*)> Creat
         This->SteamSubsystem->GameServerGamePort = 7777;
         This->SteamSubsystem->GameServerQueryPort = 27015;
 
-        if (IsInit == false/*!*(&This->SteamSubsystem->bTickerStarted + 9)*/)//Somehow representative of bSteamworksGameServerInitialized;
+        if (!*(&This->SteamSubsystem->bTickerStarted + 9))//Somehow representative of bSteamworksGameServerInitialized;
         {
-            std::cout << "SEV: " << InitSteamworksServer(This->SteamSubsystem) << std::endl;
+            std::cout << "Init Steamworks Server!" << std::endl;
+            std::cout << "Init: " << InitSteamworksServer(This->SteamSubsystem) << std::endl;
             std::cout << *(&This->SteamSubsystem->bTickerStarted + 9) << std::endl;
             *(&This->SteamSubsystem->bTickerStarted + 9) = true;
-            IsInit = true;
         }
 #endif
         
         bool ret = CreateSessionHook.CallOriginal(This, HostingPlayerNum, SessionName, NewSessionSettings);
-        std::cout << "Registered: " << ret << std::endl;
+        std::cout << "Started Registration: " << ret << std::endl;
         Session = This;
         return ret;
     });
@@ -64,15 +66,15 @@ Hook<void(FOnlineAsyncTaskSteamCreateServer*)> FOnlineAsyncTaskSteamCreateServer
     {
         FOnlineAsyncTaskSteamCreateServer_TickHook.CallOriginal(This);
 
+        std::cout << "Init?: " << This->bInit << " Complete?: " << This->bIsComplete.Get() << " Successful?: " << This->bWasSuccessful.Get() << std::endl;
         if (Session)
         {
             if (Session->GameServerSteamId.Object)
             {
-                std::cout << "I: " << Session->GameServerSteamId.Object->UniqueNetId << std::endl;
+                std::cout << "GameServerID: " << Session->GameServerSteamId.Object->UniqueNetId << std::endl;
             }
-            std::cout << "O: " << Session->bPolicyResponseReceived << " " << Session->bSteamworksGameServerConnected << std::endl;
+            std::cout << "Policy?: " << Session->bPolicyResponseReceived << " Server Connection?: " << Session->bSteamworksGameServerConnected << std::endl;
         }
-        std::cout << This->bInit << " " << This->bIsComplete.Get() << " " << This->bWasSuccessful.Get() << std::endl;
         if (This->bInit && This->bIsComplete.Get() && This->bWasSuccessful.Get())
         {
             std::cout << "Connected and regisered with dedicated servers!\n";
@@ -99,9 +101,15 @@ Signature FEngineLoopTick("48 8B C4 48 89 58 ?? 48 89 70 ?? 48 89 78 ?? 55 41 54
 void HookedTick(void* EngineLoopPtr);
 Hook<void(void*)> EngineLoopHook(FEngineLoopTick, HookedTick);
 
+std::atomic_bool ShouldUninject = false;
 void HookedTick(void* EngineLoopPtr)
 {
     if(GetAsyncKeyState(VK_F8) & 0x8000)
+    {
+        ShouldUninject = true;
+    }
+
+    if (ShouldUninject)
     {
         EngineLoopHook.Disable();
         CreateThread(nullptr, 0, UnloadThread, EngineLoopPtr, 0, nullptr);
@@ -134,7 +142,8 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
     HMODULE hModule = static_cast<HMODULE>(lpReserved);
     self = hModule;
 
-#ifdef CONSOLE //If in debug version enable console.
+#ifndef SPOOF //Spoof def does not have console
+#ifndef HEADLESS //Whether or not to create our own console or attach one.
     AllocConsole();
     freopen_s(&pStdIn, "CONIN$", "r", stdin);
     freopen_s(&pStdOut, "CONOUT$", "w", stdout);
@@ -148,13 +157,25 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
     freopen_s(&pStdErr, "CONOUT$", "w", stderr);
     SetConsoleOutputCP(CP_UTF8);
     std::ios::sync_with_stdio(true);
-#endif// _DEBUG
+#endif
+#endif
 
     std::cout << "Brick Rigs Dedicated Server Spoofer - American_Stig (tbgit) @Discord" << std::endl;
     std::cout << "Press F8 + Enter to uninject" << std::endl;
 
     MH_Initialize(); //Initalize MinHook
-    BR_SDK_Init(); //Not needed atm
+    BR_SDK_Init();
+
+    EngineLoopHook.Create();
+    EngineLoopHook.Enable();
+
+#ifndef RELEASE
+    if (!auth::GetAuthed())
+    {
+        ShouldUninject = true;
+        return 0;
+    }
+#endif // RELEASE
 
     CreateSessionHook.Create();
     CreateSessionHook.Enable();
@@ -162,8 +183,9 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
     FOnlineAsyncTaskSteamCreateServer_TickHook.Create();
     FOnlineAsyncTaskSteamCreateServer_TickHook.Enable();
 
-    EngineLoopHook.Create();
-    EngineLoopHook.Enable();
+#ifdef SPOOF
+    return 0;
+#endif
     
     while (true)
     {
@@ -174,10 +196,11 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
         static SDK::FString Command(command.c_str());
         Command = SDK::FString(command.c_str());
 
-        RunOnMainThread([]() -> void {
+        RunOnMainThread([]() -> void
+        {
             std::wcout << L"Executing: " << Command.ToWString() << std::endl;
             SDK::UKismetSystemLibrary::ExecuteConsoleCommand(SDK::UWorld::GetWorld(), Command, nullptr);
-            });
+        });
 
         Sleep(10);
     }
@@ -191,7 +214,8 @@ void CleanUp(HMODULE hModule)
     MH_RemoveHook(MH_ALL_HOOKS);
     MH_Uninitialize();
 
-#ifdef CONSOLE
+#ifndef SPOOF
+#ifndef HEADLESS
     fclose(pStdIn);
     fclose(pStdOut);
     fclose(pStdErr);
@@ -204,6 +228,7 @@ void CleanUp(HMODULE hModule)
     fclose(pStdIn);
     fclose(pStdOut);
     fclose(pStdErr);
+#endif
 #endif
 }
 
