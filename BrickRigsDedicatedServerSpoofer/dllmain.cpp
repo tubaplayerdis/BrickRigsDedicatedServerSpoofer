@@ -19,6 +19,11 @@
 * {"response":{"servers":[{"addr":"186.79.115.82:27015","gameport":7777,"steamid":"90292121794192404","name":"My Server #955","appid":552100,"gamedir":"BrickRigs","version":"1.0.0.2","product":"BrickRigs","region":-1,"players":0,"max_players":16,"bots":0,"map":"LI_Canyon","secure":true,"dedicated":true,"os":"w","gametype":"BUILDID:-1252925617,OWNINGID:76561198686315881,OWNINGNAME:My Server #955,SESSIONFLAGS:683,PASSWORD_i:0,ALLOWMODS_i:0,FPS_i:1014"}]}}
 */
 
+void PrintWaitingForCommand()
+{
+    std::wcout << L"ENTER COMMAND: ";
+}
+
 Function<void* (FOnlineSessionSteam*)> GetGameServerSession("48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 20 48 8D 99 88 02");
 
 bool InitSteamworksServer(FOnlineSubsystemSteam* This)
@@ -40,17 +45,16 @@ Hook<bool(FOnlineSessionSteam*, int, SDK::FName, FOnlineSessionSettings*)> Creat
         NewSessionSettings->bUseLobbiesIfAvailable = false;
         NewSessionSettings->bUsesPresence = false;
         NewSessionSettings->bShouldAdvertise = true;
-        std::cout << This->SteamSubsystem->GameServerGamePort << std::endl;//Registered as 7777 question mark
-        std::cout << This->SteamSubsystem->GameServerQueryPort << std::endl;//Registered as 27015
+        //std::cout << This->SteamSubsystem->GameServerGamePort << std::endl;//Registered as 7777 question mark
+        //std::cout << This->SteamSubsystem->GameServerQueryPort << std::endl;//Registered as 27015
         This->SteamSubsystem->GameServerGamePort = 7777;
         This->SteamSubsystem->GameServerQueryPort = 27015;
 
         bool bSteamworksGameServerInitialized = *(&This->SteamSubsystem->bTickerStarted + 9);
         if (!IsInit)//Somehow representative of bSteamworksGameServerInitialized;
         {
-            std::cout << "Init Steamworks Server!" << std::endl;
-            std::cout << "Init: " << InitSteamworksServer(This->SteamSubsystem) << std::endl;
-            std::cout << bSteamworksGameServerInitialized << std::endl;
+            std::cout << "Init Server Backend Result: " << InitSteamworksServer(This->SteamSubsystem) << std::endl;
+            //std::cout << bSteamworksGameServerInitialized << std::endl;
             *(&This->SteamSubsystem->bTickerStarted + 9) = true;
             IsInit = true;
         }
@@ -62,11 +66,18 @@ Hook<bool(FOnlineSessionSteam*, int, SDK::FName, FOnlineSessionSettings*)> Creat
         return ret;
     });
 
+static bool DisplayStartingConnectionMessage = true;
 Hook<void(FOnlineAsyncTaskSteamCreateServer*)> FOnlineAsyncTaskSteamCreateServer_TickHook("40 55 56 48 83 EC 48 48",
     [](FOnlineAsyncTaskSteamCreateServer* This) -> void
     {
         FOnlineAsyncTaskSteamCreateServer_TickHook.CallOriginal(This);
 
+        if (DisplayStartingConnectionMessage)
+        {
+            std::cout << "Attempting to connect to Steam dedicated servers..." << std::endl;
+            DisplayStartingConnectionMessage = false;
+        }
+        /*
         std::cout << "Init?: " << This->bInit << "\nComplete?: " << This->bIsComplete.Get() << "\nSuccessful?: " << This->bWasSuccessful.Get() << std::endl;
         if (Session)
         {
@@ -76,9 +87,17 @@ Hook<void(FOnlineAsyncTaskSteamCreateServer*)> FOnlineAsyncTaskSteamCreateServer
             }
             std::cout << "Policy?: " << Session->bPolicyResponseReceived << "\nServer Connection?: " << Session->bSteamworksGameServerConnected << std::endl;
         }
+        */
         if (This->bInit && This->bIsComplete.Get() && This->bWasSuccessful.Get())
         {
-            std::cout << "Connected and registered with dedicated servers!\n";
+            std::cout << "Connected and registered with Steam dedicated servers!\n";
+            DisplayStartingConnectionMessage = true;
+            PrintWaitingForCommand();
+        } else if (!This->bInit && This->bIsComplete.Get() && !This->bWasSuccessful.Get())
+        {
+            std::cout << "Failed to connect to Steam dedicated servers..." << std::endl;
+            DisplayStartingConnectionMessage = true;
+            PrintWaitingForCommand();
         }
     });
 
@@ -186,7 +205,7 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
     while (true)
     {
         std::wstring command;
-        std::wcout << "\nENTER COMMAND: ";
+        PrintWaitingForCommand();
         std::getline(std::wcin, command);
 
         static SDK::FString Command(command.c_str());
