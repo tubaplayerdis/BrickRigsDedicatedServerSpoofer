@@ -1,4 +1,3 @@
-// dllmain.cpp : Defines the entry point for the DLL application.
 #include <windows.h>
 #include <BR-SDK.hpp>
 #include "SteamSubsystem.hpp"
@@ -46,12 +45,14 @@ Hook<bool(FOnlineSessionSteam*, int, SDK::FName, FOnlineSessionSettings*)> Creat
         This->SteamSubsystem->GameServerGamePort = 7777;
         This->SteamSubsystem->GameServerQueryPort = 27015;
 
-        if (!*(&This->SteamSubsystem->bTickerStarted + 9))//Somehow representative of bSteamworksGameServerInitialized;
+        bool bSteamworksGameServerInitialized = *(&This->SteamSubsystem->bTickerStarted + 9);
+        if (!IsInit)//Somehow representative of bSteamworksGameServerInitialized;
         {
             std::cout << "Init Steamworks Server!" << std::endl;
             std::cout << "Init: " << InitSteamworksServer(This->SteamSubsystem) << std::endl;
-            std::cout << *(&This->SteamSubsystem->bTickerStarted + 9) << std::endl;
+            std::cout << bSteamworksGameServerInitialized << std::endl;
             *(&This->SteamSubsystem->bTickerStarted + 9) = true;
+            IsInit = true;
         }
 #endif
         
@@ -66,18 +67,18 @@ Hook<void(FOnlineAsyncTaskSteamCreateServer*)> FOnlineAsyncTaskSteamCreateServer
     {
         FOnlineAsyncTaskSteamCreateServer_TickHook.CallOriginal(This);
 
-        std::cout << "Init?: " << This->bInit << " Complete?: " << This->bIsComplete.Get() << " Successful?: " << This->bWasSuccessful.Get() << std::endl;
+        std::cout << "Init?: " << This->bInit << "\nComplete?: " << This->bIsComplete.Get() << "\nSuccessful?: " << This->bWasSuccessful.Get() << std::endl;
         if (Session)
         {
             if (Session->GameServerSteamId.Object)
             {
                 std::cout << "GameServerID: " << Session->GameServerSteamId.Object->UniqueNetId << std::endl;
             }
-            std::cout << "Policy?: " << Session->bPolicyResponseReceived << " Server Connection?: " << Session->bSteamworksGameServerConnected << std::endl;
+            std::cout << "Policy?: " << Session->bPolicyResponseReceived << "\nServer Connection?: " << Session->bSteamworksGameServerConnected << std::endl;
         }
         if (This->bInit && This->bIsComplete.Get() && This->bWasSuccessful.Get())
         {
-            std::cout << "Connected and regisered with dedicated servers!\n";
+            std::cout << "Connected and registered with dedicated servers!\n";
         }
     });
 
@@ -101,14 +102,9 @@ Signature FEngineLoopTick("48 8B C4 48 89 58 ?? 48 89 70 ?? 48 89 78 ?? 55 41 54
 void HookedTick(void* EngineLoopPtr);
 Hook<void(void*)> EngineLoopHook(FEngineLoopTick, HookedTick);
 
-std::atomic_bool ShouldUninject = false;
+static std::atomic_bool ShouldUninject = false;
 void HookedTick(void* EngineLoopPtr)
 {
-    if(GetAsyncKeyState(VK_F8) & 0x8000)
-    {
-        ShouldUninject = true;
-    }
-
     if (ShouldUninject)
     {
         EngineLoopHook.Disable();
@@ -148,7 +144,7 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
     freopen_s(&pStdIn, "CONIN$", "r", stdin);
     freopen_s(&pStdOut, "CONOUT$", "w", stdout);
     freopen_s(&pStdErr, "CONOUT$", "w", stderr);
-    SetConsoleTitleW(L"Brick Rigs Dedicated Server Spoofer");
+    SetConsoleTitleA(SOFTWARE_NAME);
     SetConsoleOutputCP(CP_UTF8);
 #else
     AttachConsole(GetCurrentProcessId());
@@ -160,8 +156,7 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
 #endif
 #endif
 
-    std::cout << "Brick Rigs Dedicated Server Spoofer - American_Stig (tbgit) @Discord" << std::endl;
-    std::cout << "Press F8 + Enter to uninject" << std::endl;
+    std::cout << "Brick Rigs Dedicated Server Plugin - American_Stig (tbgit) @Discord" << std::endl;
 
     MH_Initialize(); //Initalize MinHook
     BR_SDK_Init();
@@ -186,7 +181,8 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
 #ifdef SPOOF
     return 0;
 #endif
-    
+
+    std::cout << "Use Command: Uninject to uninject" << std::endl;
     while (true)
     {
         std::wstring command;
@@ -195,6 +191,12 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
 
         static SDK::FString Command(command.c_str());
         Command = SDK::FString(command.c_str());
+
+        if (command == L"Uninject")
+        {
+            ShouldUninject = true;
+            return 0;
+        }
 
         RunOnMainThread([]() -> void
         {

@@ -246,7 +246,7 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(SolutionDir)\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>BR-SDK_Release.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(OutDir)$(TargetName)_$(ConfigurationName)$(TargetExt)</OutputFile>
+      <OutputFile>$(OutDir)BR_DedicatedServerPlugin_$(ConfigurationName)$(TargetExt)</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Spoof|x64'">
@@ -271,7 +271,7 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(SolutionDir)\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>BR-SDK_Release.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(OutDir)$(TargetName)_$(ConfigurationName)$(TargetExt)</OutputFile>
+      <OutputFile>$(OutDir)BR_DedicatedServerPlugin_$(ConfigurationName)$(TargetExt)</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Headless|x64'">
@@ -296,7 +296,7 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(SolutionDir)\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>BR-SDK_Release.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(OutDir)$(TargetName)_$(ConfigurationName)$(TargetExt)</OutputFile>
+      <OutputFile>$(OutDir)BR_DedicatedServerPlugin_$(ConfigurationName)$(TargetExt)</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Dedicated|x64'">
@@ -321,7 +321,7 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(SolutionDir)\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>BR-SDK_Release.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(OutDir)$(TargetName)_$(ConfigurationName)$(TargetExt)</OutputFile>
+      <OutputFile>$(OutDir)BR_DedicatedServerPlugin_$(ConfigurationName)$(TargetExt)</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
