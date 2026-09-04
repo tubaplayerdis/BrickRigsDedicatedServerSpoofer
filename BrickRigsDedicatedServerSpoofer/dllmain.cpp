@@ -3,11 +3,15 @@
 #include <BR-SDK.hpp>
 #include "SteamSubsystem.hpp"
 #include "ISteamGameServer.hpp"
-//#ifdef _DEBUG
-#define CONSOLE
-//#endif
-#define ACTUAL_DEDICATED
+#include <mutex>
+#include <string>
+#include <iostream>
+//#define CONSOLE //Toggles whether we make our own console
+#define ACTUAL_DEDICATED //Whether to actually register with steams dedicated server backend
 
+#define CONSOLE_INPUT
+
+//Call servers: https://api.steampowered.com/IGameServersService/GetServerList/v1/?key=0C439C917498DD49700A29AE4CF16250&filter=\appid\552100&limit=100
 
 Function<void* (FOnlineSessionSteam*)> GetGameServerSession("48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 20 48 8D 99 88 02");
 
@@ -83,6 +87,44 @@ DWORD WINAPI UnloadThread(LPVOID lpParam) {
     FreeLibraryAndExitThread(self, 0);
 }
 
+
+std::mutex main_mutex;
+auto MainThreadFunctions = std::vector<std::function<void()>>();
+
+Signature FEngineLoopTick("48 8B C4 48 89 58 ?? 48 89 70 ?? 48 89 78 ?? 55 41 54 41 55 41 56 41 57 48 8D 68 ?? 48 81 EC ?? ?? ?? ?? 0F 29 70 ?? 48 8D 15 ?? ?? ?? ?? 48 8D 44 24 ??");
+void HookedTick(void* EngineLoopPtr);
+Hook<void(void*)> EngineLoopHook(FEngineLoopTick, HookedTick);
+
+void HookedTick(void* EngineLoopPtr)
+{
+    if(GetAsyncKeyState(VK_F8) & 0x8000)
+    {
+        EngineLoopHook.Disable();
+        CreateThread(nullptr, 0, UnloadThread, EngineLoopPtr, 0, nullptr);
+        EngineLoopHook.CallOriginalFunction(EngineLoopPtr);
+        return;
+    }
+
+    std::unique_lock lock(main_mutex);
+    if (!MainThreadFunctions.empty())
+    {
+        for (const std::function<void()>& mainThreadFunction : MainThreadFunctions)
+        {
+            mainThreadFunction();
+        }
+        MainThreadFunctions.clear();
+    }
+    lock.unlock();
+
+    EngineLoopHook.CallOriginalFunction(EngineLoopPtr);
+}
+
+void RunOnMainThread(std::function<void()> func)
+{
+    std::unique_lock lock(main_mutex);
+    MainThreadFunctions.push_back(func);
+}
+
 DWORD WINAPI MainThread(LPVOID lpReserved)
 {
     HMODULE hModule = static_cast<HMODULE>(lpReserved);
@@ -95,15 +137,20 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
     freopen_s(&pStdErr, "CONOUT$", "w", stderr);
     SetConsoleTitleW(L"Brick Rigs Dedicated Server Spoofer");
     SetConsoleOutputCP(CP_UTF8);
-#endif // _DEBUG
+#else
+    AttachConsole(GetCurrentProcessId());
+    freopen_s(&pStdIn, "CONIN$", "r", stdin);
+    freopen_s(&pStdOut, "CONOUT$", "w", stdout);
+    freopen_s(&pStdErr, "CONOUT$", "w", stderr);
+    SetConsoleOutputCP(CP_UTF8);
+    std::ios::sync_with_stdio(true);
+#endif// _DEBUG
 
-#ifdef CONSOLE
     std::cout << "Brick Rigs Dedicated Server Spoofer - American_Stig (tbgit) @Discord" << std::endl;
-    //std::cout << "Press F7 to uninject" << std::endl;
-#endif
+    std::cout << "Press F8 + Enter to uninject" << std::endl;
 
     MH_Initialize(); //Initalize MinHook
-    //BR_SDK_Init(); //Not needed atm
+    BR_SDK_Init(); //Not needed atm
 
     CreateSessionHook.Create();
     CreateSessionHook.Enable();
@@ -111,29 +158,25 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
     FOnlineAsyncTaskSteamCreateServer_TickHook.Create();
     FOnlineAsyncTaskSteamCreateServer_TickHook.Enable();
 
-    return 0;
+    EngineLoopHook.Create();
+    EngineLoopHook.Enable();
     
-#ifdef CONSOLE
     while (true)
     {
-        if (GetAsyncKeyState(VK_F6) & 0x8000)
-        {
-            if (Session) std::cout << Session->bSteamworksGameServerConnected << std::endl;
-            if (Session && Session->GameServerSteamId.Object)
-            {
-                std::cout << Session->GameServerSteamId.Object->UniqueNetId << std::endl;
-            }
-        }
+        std::wstring command;
+        std::wcout << "\nENTER COMMAND: ";
+        std::getline(std::wcin, command);
 
-        if (GetAsyncKeyState(VK_F7) & 0x8000)
-        {
-            CreateThread(nullptr, 0, UnloadThread, nullptr, 0, nullptr);
-            return 0;
-        }
+        static SDK::FString Command(command.c_str());
+        Command = SDK::FString(command.c_str());
+
+        RunOnMainThread([]() -> void {
+            std::wcout << L"Executing: " << Command.ToWString() << std::endl;
+            SDK::UKismetSystemLibrary::ExecuteConsoleCommand(SDK::UWorld::GetWorld(), Command, nullptr);
+            });
 
         Sleep(10);
     }
-#endif
 
     return 0;
 }
@@ -153,6 +196,10 @@ void CleanUp(HMODULE hModule)
     SetStdHandle(STD_ERROR_HANDLE, nullptr);
     FreeConsole();
     PostMessage(GetConsoleWindow(), WM_CLOSE, 0, 0);
+#else
+    fclose(pStdIn);
+    fclose(pStdOut);
+    fclose(pStdErr);
 #endif
 }
 
