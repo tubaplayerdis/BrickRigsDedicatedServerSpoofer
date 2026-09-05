@@ -4,6 +4,48 @@
 #include <winhttp.h>
 #pragma comment(lib, "winhttp.lib")
 
+// Function pointer typedefs matching Steam's exported flat API
+typedef bool (__cdecl* SteamAPI_Init_t)();
+typedef int  (__cdecl* SteamAPI_GetHSteamUser_t)();
+typedef void* (__cdecl* SteamInternal_FindOrCreateUserInterface_t)(int hSteamUser, const char* version);
+typedef uint64_t (__cdecl* SteamAPI_ISteamUser_GetSteamID_t)(void* instancePtr);
+
+uint64_t GetSteamID()
+{
+    HMODULE hSteam = GetModuleHandleA("steam_api64.dll");
+    if (!hSteam)
+    {
+        printf("steam_api64.dll not loaded in this process\n");
+        return 1;
+    }
+
+    auto SteamAPI_Init = (SteamAPI_Init_t)GetProcAddress(hSteam, "SteamAPI_Init");
+    auto SteamAPI_GetHSteamUser = (SteamAPI_GetHSteamUser_t)GetProcAddress(hSteam, "SteamAPI_GetHSteamUser");
+    auto SteamInternal_FindOrCreateUserInterface = (SteamInternal_FindOrCreateUserInterface_t)GetProcAddress(hSteam, "SteamInternal_FindOrCreateUserInterface");
+    auto SteamAPI_ISteamUser_GetSteamID = (SteamAPI_ISteamUser_GetSteamID_t)GetProcAddress(hSteam, "SteamAPI_ISteamUser_GetSteamID");
+
+    if (!SteamAPI_GetHSteamUser || !SteamInternal_FindOrCreateUserInterface || !SteamAPI_ISteamUser_GetSteamID)
+    {
+        printf("Missing one or more expected exports\n");
+        std::cout
+        << SteamAPI_GetHSteamUser << "\n"
+        << SteamInternal_FindOrCreateUserInterface << "\n"
+        << SteamAPI_ISteamUser_GetSteamID << "\n";
+        return 0;
+    }
+
+    int hUser = SteamAPI_GetHSteamUser();
+
+    // Version string must match an interface version the installed steam_api.dll actually supports.
+    void* pUser = SteamInternal_FindOrCreateUserInterface(hUser, "SteamUser023");
+    if (!pUser) { printf("Failed to get ISteamUser interface\n"); return 0; }
+
+    uint64_t steamID = SteamAPI_ISteamUser_GetSteamID(pUser);
+    return steamID;
+
+    return 0;
+}
+
 std::string HttpsGet(const std::wstring& host, const std::wstring& path, bool& success) {
     std::string result;
     success = false;
@@ -74,19 +116,18 @@ bool auth::GetAuthed()
         }
     }
 
-    SDK::ABrickPlayerController* PlayerController = reinterpret_cast<SDK::ABrickPlayerController*>(SDK::UGameplayStatics::GetPlayerController(SDK::UWorld::GetWorld(), 0));
-    SDK::FString PlayerNetID = SDK::UBrickStatics::UniqueNetIdToString(PlayerController->GetPlayerId());
+    auto SteamID = GetSteamID();
     bool auth = false;
     for (auto User : RegisteredUsers)
     {
-        if (User == PlayerNetID.ToString()) auth = true;
+        if (User == std::to_string(SteamID)) auth = true;
     }
     if (!auth)
     {
         MessageBoxA(NULL, "Authentication Failed. This software will now uninject", SOFTWARE_NAME, MB_OK);
         return false;
     }
-    std::cout << "AUTHENTICATED USER: " << PlayerNetID.ToString() << std::endl;
+    std::cout << "AUTHENTICATED USER: " << SteamID << std::endl;
 
     return true;
 }

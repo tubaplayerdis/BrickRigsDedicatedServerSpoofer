@@ -13,6 +13,45 @@
 //#define SPOOF
 #endif
 
+#ifdef DEDICATED
+#define PLUGIN_NAME_BRICKRUST "Dedicated Server Plugin (Dedicated)"
+#elif HEADLESS
+#define PLUGIN_NAME_BRICKRUST "Headless Server Plugin (Headless)"
+#else
+#define PLUGIN_NAME_BRICKRUST "Headless Server Plugin (Spoof)"
+#endif
+
+#pragma region brickrust
+
+struct ModInfo
+{
+    const char* name;
+    const char* description;
+    const char* version;
+    const char* game_version;
+    const char* authors;
+};
+
+extern "C" {
+    __declspec(dllexport) ModInfo mod_info()
+    {
+        return ModInfo {
+            .name = PLUGIN_NAME_BRICKRUST,
+            .description = "Enables dedicated server functionality for Brick Rigs",
+            .version = "1.0.0",
+            .game_version = "1.10.7",
+            .authors = "American_Stig (tbgit) @Discord"
+        };
+    }
+
+    __declspec(dllexport) void mod_init()
+    {
+        return;//Nothing atm
+    }
+}
+
+#pragma endregion brickrust
+
 //Call servers: https://api.steampowered.com/IGameServersService/GetServerList/v1/?key=0C439C917498DD49700A29AE4CF16250&filter=\appid\552100&limit=100
 
 /*
@@ -92,12 +131,10 @@ Hook<void(FOnlineAsyncTaskSteamCreateServer*)> FOnlineAsyncTaskSteamCreateServer
         {
             std::cout << "Connected and registered with Steam dedicated servers!\n";
             DisplayStartingConnectionMessage = true;
-            PrintWaitingForCommand();
         } else if (!This->bInit && This->bIsComplete.Get() && !This->bWasSuccessful.Get())
         {
             std::cout << "Failed to connect to Steam dedicated servers..." << std::endl;
             DisplayStartingConnectionMessage = true;
-            PrintWaitingForCommand();
         }
     });
 
@@ -178,7 +215,10 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
     std::cout << "Brick Rigs Dedicated Server Plugin - American_Stig (tbgit) @Discord" << std::endl;
 
     MH_Initialize(); //Initalize MinHook
+
+#ifndef SPOOF
     BR_SDK_Init();
+#endif
 
     EngineLoopHook.Create();
     EngineLoopHook.Enable();
