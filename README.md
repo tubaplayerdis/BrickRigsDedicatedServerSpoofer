@@ -1,1 +1,2 @@
 # BrickRigsDedicatedServerSpoofer
+Source for the BR_DedicatedServerPlugin
