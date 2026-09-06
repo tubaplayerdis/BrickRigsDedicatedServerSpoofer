@@ -1,7 +1,8 @@
-#include "auth.hpp"
 #include <json.hpp>
 #include <BR-SDK.hpp>
 #include <winhttp.h>
+
+#include "MACROS.hpp"
 #pragma comment(lib, "winhttp.lib")
 
 // Function pointer typedefs matching Steam's exported flat API
@@ -98,7 +99,7 @@ std::string HttpsGet(const std::wstring& host, const std::wstring& path, bool& s
 
 std::vector<std::string> RegisteredUsers = { /*"76561199077491485"*/ };
 
-bool auth::GetAuthed()
+bool GetAuthed()
 {
     using json = nlohmann::json;
 

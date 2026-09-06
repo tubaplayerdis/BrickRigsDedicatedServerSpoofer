@@ -25,4 +25,4 @@
 /// @param cls Class of the new object. Not the UClass. Ex: SDK::UBrickBorder
 /// @param out A pointer to the outer object the new object should be created with
 /// @return A pointer to the new object
-#define SpawnObject(cls, out) SpawnObjectInternal<cls>(out, #cls)
+//#define SpawnObject(cls, out) SpawnObjectInternal<cls>(out, #cls)

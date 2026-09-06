@@ -325,13 +325,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="auth.hpp" />
-    <ClInclude Include="framework.h" />
+    <ClCompile Include="MainLoop.cpp" />
+    <ClCompile Include="SessionSpoofer.cpp" />
+    <ClCompile Include="IConsoleManager.cpp" />
+    <ClInclude Include="IConsoleManager.hpp" />
     <ClInclude Include="ISteamGameServer.hpp" />
+    <ClInclude Include="MACROS.hpp" />
     <ClInclude Include="SteamSubsystem.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="auth.cpp" />
+    <ClCompile Include="Auth.cpp" />
     <ClCompile Include="dllmain.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
