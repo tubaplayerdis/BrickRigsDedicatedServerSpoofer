@@ -44,7 +44,6 @@ extern "C" {
 #pragma endregion brickrust
 
 //Forward Declarations
-bool GetAuthed();
 void SetupSessionSpooferHooks();
 void SetupConsoleOutputOverride();
 void SetupMainThreadExecution();
@@ -94,13 +93,6 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
 #ifdef HEADLESS
     SetupMainThreadExecution();
 #endif
-
-#ifndef RELEASE
-    if (!GetAuthed())
-    {
-        return 0;
-    }
-#endif // RELEASE
 
     SetupSessionSpooferHooks();
     SetupConsoleOutputOverride();

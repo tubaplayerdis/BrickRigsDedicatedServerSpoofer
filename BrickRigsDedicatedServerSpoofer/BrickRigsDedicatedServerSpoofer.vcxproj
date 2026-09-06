@@ -334,7 +334,6 @@
     <ClInclude Include="SteamSubsystem.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Auth.cpp" />
     <ClCompile Include="dllmain.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
